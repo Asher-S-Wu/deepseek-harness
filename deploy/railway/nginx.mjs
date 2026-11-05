@@ -2,10 +2,10 @@
 
 /**
  * Render the HTTPS edge proxy's Nginx configuration.
- * @param {{port: number, host: string, version: string}} config - Validated listener and package metadata.
+ * @param {{port: number, host: string, version: string, loginBodyLimit: number}} config - Validated listener, package metadata, and login form capacity.
  * @returns {string} Configuration preserving streaming and the private launch-token exchange.
  */
-export function nginxConfig({ port, host, version }) {
+export function nginxConfig({ port, host, version, loginBodyLimit }) {
   return String.raw`worker_processes 1;
 pid /tmp/harness-nginx.pid;
 error_log stderr warn;
@@ -29,7 +29,7 @@ http {
     location = /__auth/login {
       limit_req zone=login burst=10 nodelay;
       limit_req_status 429;
-      client_max_body_size 4k;
+      client_max_body_size ${loginBodyLimit};
       proxy_pass http://127.0.0.1:3090;
       proxy_set_header Host ${host};
       proxy_cookie_flags ~ secure httponly samesite=strict;

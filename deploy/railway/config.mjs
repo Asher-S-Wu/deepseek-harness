@@ -2,6 +2,7 @@
 
 /**
  * Resolve required deployment variables before opening listeners or changing files.
+ * Single-line access keys require eight Unicode code points, with no maximum length.
  * @param {NodeJS.ProcessEnv} env - Railway service environment.
  * @returns {{port: number, publicUrl: URL, home: string, workspace: string, key: string}} Validated configuration.
  */
@@ -9,8 +10,11 @@ export function deploymentConfig(env) {
   for (const name of ['PORT', 'PUBLIC_URL', 'DSH_HOME', 'DSH_WORKSPACE', 'VRELAY_API_KEY', 'HARNESS_LOGIN_KEY']) {
     if (!env[name]) throw new Error('Missing required variable: ' + name)
   }
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(env.HARNESS_LOGIN_KEY)) {
-    throw new Error('HARNESS_LOGIN_KEY must contain 32–128 URL-safe characters')
+  if ([...env.HARNESS_LOGIN_KEY].length < 8) {
+    throw new Error('HARNESS_LOGIN_KEY must contain at least 8 characters')
+  }
+  if (/[\r\n]/u.test(env.HARNESS_LOGIN_KEY)) {
+    throw new Error('HARNESS_LOGIN_KEY must be a single line, matching the browser password field')
   }
   const port = Number(env.PORT)
   if (!Number.isInteger(port) || port < 1 || port > 65535 || port === 3080 || port === 3090) {

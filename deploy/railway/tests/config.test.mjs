@@ -23,6 +23,21 @@ test('deployment requires complete secrets and an HTTPS root URL', () => {
   assert.throws(() => deploymentConfig({ ...environment, HARNESS_LOGIN_KEY: 'short' }), /HARNESS_LOGIN_KEY/)
 })
 
+test('access keys accept eight characters, Unicode, spaces, symbols, and long values', () => {
+  for (const key of ['12345678', '这是八个中文字符', '🔐'.repeat(8), '  +&%=!?  ', 'a'.repeat(8192)]) {
+    assert.equal(deploymentConfig({ ...environment, HARNESS_LOGIN_KEY: key }).key, key)
+  }
+  for (const key of ['1234567', '🔐'.repeat(7)]) {
+    assert.throws(() => deploymentConfig({ ...environment, HARNESS_LOGIN_KEY: key }), /at least 8 characters/)
+  }
+})
+
+test('access keys use the single-line browser password input format', () => {
+  for (const key of ['1234567\n8', '1234567\r8', '1234567\r\n8']) {
+    assert.throws(() => deploymentConfig({ ...environment, HARNESS_LOGIN_KEY: key }), /single line/)
+  }
+})
+
 test('launch readiness accepts only the configured origin and one nonempty private token', () => {
   const origin = 'https://harness.vrelay.cc'
   assert.equal(readLaunchToken('dsh web: https://harness.vrelay.cc/?token=private', origin), 'private')
@@ -33,7 +48,7 @@ test('launch readiness accepts only the configured origin and one nonempty priva
 })
 
 test('HTTPS proxy retains websocket forwarding, rate limits, and private-token restrictions', () => {
-  const config = nginxConfig({ port: 8080, host: 'harness.vrelay.cc', version: '0.2.2-rc.1' })
+  const config = nginxConfig({ port: 8080, host: 'harness.vrelay.cc', version: '0.2.2-rc.1', loginBodyLimit: 4096 })
   assert.match(config, /listen 8080;/)
   assert.match(config, /location = \/connect \{ return 404; \}/)
   assert.match(config, /limit_req zone=login burst=10 nodelay;/)
@@ -41,4 +56,9 @@ test('HTTPS proxy retains websocket forwarding, rate limits, and private-token r
   assert.match(config, /proxy_set_header Upgrade \$http_upgrade;/)
   assert.match(config, /proxy_cookie_flags ~ secure httponly samesite=strict;/)
   assert.ok(!config.includes(environment.HARNESS_LOGIN_KEY))
+})
+
+test('the proxy accepts the login body capacity selected for the configured key', () => {
+  const config = nginxConfig({ port: 8080, host: 'harness.vrelay.cc', version: '0.2.2-rc.1', loginBodyLimit: 32768 })
+  assert.match(config, /client_max_body_size 32768;/)
 })

@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
 import { deploymentConfig, readLaunchToken } from './config.mjs'
-import { createLoginServer } from './login-server.mjs'
+import { createLoginServer, loginRequestBodyLimit } from './login-server.mjs'
 import { nginxConfig } from './nginx.mjs'
 
 /**
@@ -21,7 +21,9 @@ export async function start() {
   mkdirSync(config.home, { recursive: true })
   mkdirSync(config.workspace, { recursive: true })
   const configPath = '/tmp/harness-nginx.conf'
-  writeFileSync(configPath, nginxConfig({ port: config.port, host: config.publicUrl.host, version }))
+  writeFileSync(configPath, nginxConfig({
+    port: config.port, host: config.publicUrl.host, version, loginBodyLimit: loginRequestBodyLimit(config.key),
+  }))
   const checked = spawnSync('nginx', ['-t', '-c', configPath], { encoding: 'utf8' })
   if (checked.error || checked.status !== 0) {
     throw new Error('Nginx configuration failed: ' + (checked.error?.message ?? checked.stderr))

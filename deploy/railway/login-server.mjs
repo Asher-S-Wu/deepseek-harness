@@ -3,6 +3,15 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, request } from 'node:http'
 import { loginPage } from './login-page.mjs'
 
+/**
+ * Bound form bytes while accepting the configured key with every UTF-8 byte percent-encoded.
+ * @param {string} key - Configured access key, preserved without normalization.
+ * @returns {number} Request ceiling in bytes, at least 4 KiB.
+ */
+export function loginRequestBodyLimit(key) {
+  return Math.max(4096, 4 + Buffer.byteLength(key) * 3)
+}
+
 function exchangeSession({ harnessPort, host, launchToken }) {
   return new Promise((resolve, reject) => {
     const req = request({
@@ -32,6 +41,7 @@ function exchangeSession({ harnessPort, host, launchToken }) {
 export function createLoginServer({ key, publicUrl, harnessPort, getLaunchToken }) {
   const url = new URL(publicUrl)
   const expected = Buffer.from(key)
+  const bodyLimit = loginRequestBodyLimit(key)
   return createServer(async (req, res) => {
     const nonce = randomBytes(18).toString('base64')
     const headers = {
@@ -74,7 +84,7 @@ export function createLoginServer({ key, publicUrl, harnessPort, getLaunchToken 
       const chunks = []
       for await (const chunk of req) {
         size += chunk.length
-        if (size > 4096) {
+        if (size > bodyLimit) {
           respond(413, '输入内容过长，请检查密钥')
           return
         }

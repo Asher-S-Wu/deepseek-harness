@@ -17,7 +17,7 @@ async function listen(server, t) {
   return server.address().port
 }
 
-async function fixture(t, { token = 'private-launch-token', status = 303 } = {}) {
+async function fixture(t, { token = 'private-launch-token', status = 303, loginKey = key } = {}) {
   const exchanges = []
   const harness = createServer((req, res) => {
     exchanges.push({ url: req.url, host: req.headers.host })
@@ -25,7 +25,7 @@ async function fixture(t, { token = 'private-launch-token', status = 303 } = {})
     res.end()
   })
   const harnessPort = await listen(harness, t)
-  const port = await listen(createLoginServer({ key, publicUrl, harnessPort, getLaunchToken: () => token }), t)
+  const port = await listen(createLoginServer({ key: loginKey, publicUrl, harnessPort, getLaunchToken: () => token }), t)
   const origin = `http://127.0.0.1:${port}`
   const post = (body, headers = {}) => fetch(`${origin}/__auth/login`, {
     method: 'POST', redirect: 'manual', body,
@@ -61,6 +61,24 @@ test('valid key exchanges the private launch token and returns a secure session 
   assert.match(response.headers.get('set-cookie'), /; Secure/)
   assert.deepEqual(exchanges, [{ url: '/?token=private-launch-token', host: 'harness.vrelay.cc' }])
   assert.ok(!(await response.text()).includes('private-launch-token'))
+})
+
+test('eight-character keys containing spaces and form symbols authenticate exactly', async t => {
+  const loginKey = ' +&%=!? '
+  const { post, exchanges } = await fixture(t, { loginKey })
+  assert.equal((await post(new URLSearchParams({ key: loginKey }))).status, 303)
+  assert.equal((await post(new URLSearchParams({ key: loginKey.trim() }))).status, 401)
+  assert.equal(exchanges.length, 1)
+})
+
+test('long Unicode keys authenticate beyond the former form limit using percent encoding', async t => {
+  const loginKey = '口令🔐&+ =%'.repeat(800)
+  const { post, exchanges } = await fixture(t, { loginKey })
+  const body = 'key=' + [...Buffer.from(loginKey)].map(byte => '%' + byte.toString(16).padStart(2, '0')).join('')
+  assert.ok(body.length > 4096)
+  assert.equal((await post(body)).status, 303)
+  assert.equal((await post(body + '&padding=1')).status, 413)
+  assert.equal(exchanges.length, 1)
 })
 
 test('incorrect and duplicate keys remain signed out with a visible error', async t => {

@@ -19,7 +19,8 @@ test('login dialog supports keyboard, errors, light/dark themes, and constrained
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   const url = `http://127.0.0.1:${server.address().port}`
-  login = createLoginServer({ key: 'a'.repeat(48), publicUrl: url, harnessPort: 1, getLaunchToken: () => undefined })
+  const loginKey = '口令🔐&+ =%'.repeat(800)
+  login = createLoginServer({ key: loginKey, publicUrl: url, harnessPort: 1, getLaunchToken: () => undefined })
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   t.after(() => browser.close())
   const page = await browser.newPage({ viewport: { width: 1365, height: 900 }, colorScheme: 'light' })
@@ -61,7 +62,7 @@ test('login dialog supports keyboard, errors, light/dark themes, and constrained
   assert.deepEqual(await loading, { disabled: true, label: '正在登录…', readOnly: true, busy: 'true' })
   await page.getByRole('alert').filter({ hasText: '密钥有误，请检查后重试' }).waitFor()
   assert.equal(await key.getAttribute('aria-invalid'), 'true')
-  await key.fill('a'.repeat(48))
+  await key.fill(loginKey)
   await submit.click()
   await page.getByRole('alert').filter({ hasText: '服务正在启动，请稍后再试' }).waitFor()
   for (const colorScheme of ['light', 'dark']) {

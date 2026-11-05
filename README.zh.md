@@ -48,7 +48,7 @@ pnpm dsh web
 
 ### Railway 部署
 
-[railpack.json](railpack.json) 使用 `pnpm run build:railway` 构建当前仓库，并通过[部署启动器](deploy/railway/start.mjs) 启动其中的 `dsh web` 配置。持久卷挂载到 `/data`；在 Railway 设置 `DSH_HOME`、`DSH_WORKSPACE`、`PORT`、HTTPS 根地址 `PUBLIC_URL`、`VRELAY_API_KEY` 和 `HARNESS_LOGIN_KEY`，健康检查路径设为 `/healthz`。[访问密钥弹窗](deploy/railway/login-page.mjs) 校验密钥后，使用 Harness 原有的签名浏览器登录状态。密钥保存在 Railway 变量中。运行 `pnpm run test:railway` 检查登录和代理配置。
+[railpack.json](railpack.json) 使用 `pnpm run build:railway` 构建当前仓库，并通过[部署启动器](deploy/railway/start.mjs) 启动其中的 `dsh web` 配置。持久卷挂载到 `/data`；在 Railway 设置 `DSH_HOME`、`DSH_WORKSPACE`、`PORT`、HTTPS 根地址 `PUBLIC_URL`、`VRELAY_API_KEY` 和 `HARNESS_LOGIN_KEY`，健康检查路径设为 `/healthz`。访问密钥为单行文本，至少 8 个 Unicode 字符，最大长度不限。[访问密钥弹窗](deploy/railway/login-page.mjs) 校验密钥后，使用 Harness 原有的签名浏览器登录状态。密钥保存在 Railway 变量中。运行 `pnpm run test:railway` 检查登录和代理配置。
 
 ## 社区与支持
 
