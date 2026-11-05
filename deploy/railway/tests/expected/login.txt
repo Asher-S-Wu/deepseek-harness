@@ -1,0 +1,11 @@
+- dialog "登录工作空间":
+  - button "关闭登录弹窗"
+  - text: HARNESS
+  - heading "登录工作空间" [level=2]
+  - paragraph: 输入访问密钥，继续对话与工作
+  - text: 访问密钥
+  - textbox "访问密钥":
+    - /placeholder: 输入访问密钥
+  - alert
+  - button "进入 Harness"
+  - paragraph: 登录状态将在此浏览器保留 30 天

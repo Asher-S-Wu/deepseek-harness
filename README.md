@@ -40,6 +40,10 @@ pnpm dsh web
 
 `pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
 
+### Railway deployment
+
+[railpack.json](railpack.json) builds this checkout with `pnpm run build:railway` and starts its `dsh web` profile through the [deployment supervisor](deploy/railway/start.mjs). Mount the persistent volume at `/data`; set `DSH_HOME`, `DSH_WORKSPACE`, `PORT`, the HTTPS root `PUBLIC_URL`, `VRELAY_API_KEY`, and `HARNESS_LOGIN_KEY` in Railway, with `/healthz` as the health check. The [access-key dialog](deploy/railway/login-page.mjs) exchanges a valid key for Harness's existing signed browser session. Keep credentials in Railway variables. Run `pnpm run test:railway` to check authentication and proxy configuration.
+
 ## Community and support
 
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
