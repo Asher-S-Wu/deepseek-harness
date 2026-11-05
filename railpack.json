@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "provider": "node",
-  "buildAptPackages": ["build-essential", "musl-tools", "python3"],
+  "buildAptPackages": ["...", "build-essential", "musl-tools", "python3"],
   "packages": {
     "node": "24"
   },
@@ -12,6 +12,6 @@
   },
   "deploy": {
     "startCommand": "node deploy/railway/start.mjs",
-    "aptPackages": ["nginx", "git", "bash", "bubblewrap", "ripgrep", "python3", "ca-certificates"]
+    "aptPackages": ["...", "nginx", "git", "bash", "bubblewrap", "ripgrep", "python3", "ca-certificates"]
   }
 }

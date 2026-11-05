@@ -19,7 +19,7 @@
   "scripts": {
     "test:railway": "node --check deploy/railway/start.mjs && node --test deploy/railway/tests/*.test.mjs",
     "test:railway:browser": "node --test deploy/railway/tests/login.browser.mjs",
-    "build:railway": "pnpm run test:railway && pnpm exec tsx native/system/scripts/build.ts && pnpm run build:artifacts --serial",
+    "build:railway": "pnpm run test:railway && pnpm exec tsx native/system/scripts/build.ts && DSH_CLIENT_COMMIT_HASH=\"$RAILWAY_GIT_COMMIT_SHA\" pnpm run build:artifacts --serial",
     "start:railway": "node deploy/railway/start.mjs",
     "prepare:primary-runtime": "tsx scripts/primary-runtime/prepare.ts",
     "build": "tsx scripts/build.ts",
