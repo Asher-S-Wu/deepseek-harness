@@ -43,6 +43,7 @@ export function ComposerContentEditable({ editor, editable, ...rest }: ComposerC
       suppressContentEditableWarning
       role="textbox"
       aria-multiline="true"
+      enterKeyHint="enter"
       data-composer-input
       {...rest}
     />

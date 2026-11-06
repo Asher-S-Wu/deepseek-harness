@@ -208,14 +208,15 @@ it('restores the previous caret or selection in fresh and existing sessions', as
   expect(tripwire.pageErrors).toEqual([])
 }, 180_000)
 
-it('keeps mobile submission keyboard navigation in the composer while retaining desktop focus', async () => {
+it('keeps mobile newlines in the draft and preserves focus after explicit submission', async () => {
   const observations: string[] = []
   for (const { engine, mobile, submission } of [
     { engine: chromium, mobile: false, submission: 'Send' },
+    { engine: chromium, mobile: false, submission: 'Enter' },
     { engine: chromium, mobile: true, submission: 'Send' },
-    { engine: chromium, mobile: true, submission: 'Enter' },
+    { engine: chromium, mobile: true, submission: 'Control+Enter' },
     { engine: webkit, mobile: true, submission: 'Send' },
-    { engine: webkit, mobile: true, submission: 'Enter' },
+    { engine: webkit, mobile: true, submission: 'Control+Enter' },
   ]) {
     const scaffold = await launchWebScaffold({
       replayFixture: fileURLToPath(new URL('../../../snapshots/web/live-interactions/session.v3.jsonl', import.meta.url)),
@@ -228,23 +229,44 @@ it('keeps mobile submission keyboard navigation in the composer while retaining 
           viewport: { width: mobile ? 390 : 1280, height: 844 },
           locale: 'en-US', timezoneId: 'Asia/Shanghai',
           ...mobile ? {
-            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1',
+            userAgent: engine === webkit
+              ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1'
+              : 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
             isMobile: true, hasTouch: true,
           } : {},
         })
         const tripwire = watchConsole(page)
         const platform = `${engine.name()} ${mobile ? 'mobile' : 'desktop'} ${submission}`
         let finished = false
+        let turns = 0
         const off = scaffold.ctx.on('session/event', (_session, event) => {
           if (event.type === 'turn/end') finished = true
+          if (event.type === 'turn/start') turns += 1
         })
         try {
           await page.goto(scaffold.authenticatedUrl)
           await connectFreshWorkspace(page, scaffold.workspaceCwd, `submission-${platform}`)
           const input = page.locator('[data-composer-input][contenteditable="true"]')
+          if (mobile) {
+            expect(await input.getAttribute('enterkeyhint')).toBe('enter')
+            await input.fill('first line')
+            await page.keyboard.press('Enter')
+            await page.keyboard.type('second line')
+            await expect.poll(() => input.innerText()).toBe('first line\nsecond line')
+            for (const inputType of ['insertParagraph', 'insertLineBreak']) {
+              await input.evaluate((element, type) => {
+                element.dispatchEvent(new InputEvent('beforeinput', { inputType: type, bubbles: true, cancelable: true }))
+              }, inputType)
+              await page.keyboard.type(inputType)
+            }
+            await expect.poll(() => input.innerText()).toBe('first line\nsecond line\ninsertParagraph\ninsertLineBreak')
+            expect(await input.evaluate(element => document.activeElement === element)).toBe(true)
+            expect(turns).toBe(0)
+            observations.push(`- ${platform}: Enter and native newline input retain all four draft lines and editor focus without starting a turn`)
+          }
           await input.fill('Reply with a one-sentence description of event sourcing, then stop.')
           expect(await input.evaluate(element => document.activeElement === element)).toBe(true)
-          if (submission === 'Enter') await page.keyboard.press('Enter')
+          if (submission !== 'Send') await page.keyboard.press(submission)
           else {
             const send = page.getByRole('button', { name: 'Send message', exact: true })
             if (mobile) await send.tap()

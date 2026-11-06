@@ -6,11 +6,47 @@
  */
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { fireEvent } from '@testing-library/react'
-import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical'
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor, KEY_ENTER_COMMAND } from 'lexical'
 import { registerPlainText } from '@lexical/plain-text'
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { registerComposerKeymap } from '../src/client/input/editor/keymap.ts'
 
 describe('keymap keydown routing', () => {
+  it.each([
+    { gesture: 'mobile Enter', mobile: true, modifiers: {} },
+    { gesture: 'mobile Shift+Enter', mobile: true, modifiers: { shiftKey: true } },
+    { gesture: 'desktop Shift+Enter', mobile: false, modifiers: { shiftKey: true } },
+    { gesture: 'mobile composition newline', mobile: true, modifiers: null },
+    { gesture: 'desktop composition newline', mobile: false, modifiers: null },
+  ])('inserts a line break for $gesture without sending or picking a menu item', ({ mobile, modifiers }) => {
+    const device = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(mobile)
+    onTestFinished(() => { device.mockRestore() })
+    const editor = createEditor({ namespace: 'newline-routing', onError: (error) => { throw error } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    onTestFinished(() => { editor.setRootElement(null); root.remove() })
+    editor.setRootElement(root)
+    onTestFinished(registerPlainText(editor))
+    const submit = vi.fn()
+    const arbitrate = vi.fn(() => 'pick-highlighted' as const)
+    onTestFinished(registerComposerKeymap(editor, {
+      arbitrate, space: () => false, dismissPopup: () => {}, canSubmit: () => true,
+      submit, intakeFiles: () => {}, pasteText: () => {},
+    }))
+    editor.update(() => {
+      const paragraph = $createParagraphNode().append($createTextNode('first line'))
+      $getRoot().append(paragraph)
+      paragraph.selectEnd()
+      if (modifiers === null) editor.dispatchCommand(KEY_ENTER_COMMAND, null)
+      else fireEvent.keyDown(root, { key: 'Enter', ...modifiers })
+    }, { discrete: true })
+
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('first line\n')
+    expect(submit).not.toHaveBeenCalled()
+    expect(arbitrate).not.toHaveBeenCalled()
+  })
+
   it('clears composition presentation on root swaps and unregisters pending callbacks', async () => {
     const editor = createEditor({ namespace: 'composition-root', onError: (e) => { throw e } })
     const first = document.createElement('div')
@@ -44,15 +80,18 @@ describe('keymap keydown routing', () => {
     expect(second.hasAttribute('data-composer-composing')).toBe(false)
   })
 
-  it('routes Enter to the keymap submit handler', () => {
+  it.each([false, true])('routes explicit submit gestures with mobile=%s', (mobile) => {
+    const device = vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(mobile)
+    onTestFinished(() => { device.mockRestore() })
     const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
     const root = document.createElement('div')
     root.contentEditable = 'true'
     document.body.appendChild(root)
+    onTestFinished(() => { editor.setRootElement(null); root.remove() })
     editor.setRootElement(root)
-    registerPlainText(editor)
+    onTestFinished(registerPlainText(editor))
     const submit = vi.fn()
-    registerComposerKeymap(editor, {
+    onTestFinished(registerComposerKeymap(editor, {
       arbitrate: () => 'pass',
       space: () => false,
       dismissPopup: () => {},
@@ -60,11 +99,16 @@ describe('keymap keydown routing', () => {
       submit,
       intakeFiles: () => {},
       pasteText: () => {},
-    })
-    fireEvent.keyDown(root, { key: 'Enter' })
-    expect(submit).toHaveBeenCalledWith(false)
+    }))
+    if (!mobile) {
+      fireEvent.keyDown(root, { key: 'Enter' })
+      expect(submit).toHaveBeenCalledWith(false)
+    }
     fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
     expect(submit).toHaveBeenCalledWith(true)
+    fireEvent.keyDown(root, { key: 'Enter', ctrlKey: true })
+    expect(submit).toHaveBeenLastCalledWith(true)
+    expect(submit).toHaveBeenCalledTimes(mobile ? 2 : 3)
   })
 
   it.each([

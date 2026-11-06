@@ -5,6 +5,8 @@
  * @lexical/plain-text's own Enter/paste defaults; a handler returning false
  * falls through to those defaults (Shift+Enter's line break, ordinary
  * spaces, text paste the bar routes itself).
+ * Mobile Enter and editor-generated newlines insert line breaks. Desktop
+ * Enter and explicit Ctrl/Cmd+Enter chords retain submission behavior.
  *
  * IME guard: a composition-closing Enter/Space must not submit or adjudicate.
  * KeyboardEvent.isComposing covers most engines; Safari delivers the closing
@@ -22,6 +24,7 @@ import {
   KEY_ESCAPE_COMMAND, KEY_SPACE_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND,
 } from 'lexical'
 import { mergeRegister } from '@lexical/utils'
+import { isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ArbitrateKey, ArbitrateOutcome } from '../../contract/draft-editor.ts'
 import { $isQuoteNode } from './QuoteNode.tsx'
 
@@ -35,7 +38,7 @@ export interface ComposerKeymapHandlers {
   dismissPopup(): void
   /** Whether Enter may submit right now (locked/busy states refuse). */
   canSubmit(): boolean
-  /** Plain Enter submits; exactly Ctrl+Enter or Cmd+Enter selects accelerated delivery. */
+  /** Desktop Enter submits; exactly Ctrl+Enter or Cmd+Enter selects accelerated delivery on any device. */
   submit(accelerated: boolean): void
   /**
    * Pasted files with directory metadata supplied by the clipboard entry API.
@@ -255,27 +258,29 @@ export function registerComposerKeymap(editor: LexicalEditor, handlers: Composer
       return false
     }, COMMAND_PRIORITY_CRITICAL),
     editor.registerCommand(KEY_ENTER_COMMAND, (event) => {
+      if (event === null) return false
       // Returning true stops Lexical's fallback line break without consuming
       // the DOM event that application shortcuts need.
-      if (event !== null && (event.altKey || event.getModifierState('AltGraph')
-        || (event.ctrlKey && event.metaKey) || (event.shiftKey && (event.ctrlKey || event.metaKey)))) return true
+      if (event.altKey || event.getModifierState('AltGraph')
+        || (event.ctrlKey && event.metaKey) || (event.shiftKey && (event.ctrlKey || event.metaKey))) return true
       // Plain Shift+Enter keeps its native line break, including during composition.
-      if (event?.shiftKey === true) return false
-      if (event !== null && isComposingEvent(event, recentlyComposing)) {
+      if (event.shiftKey) return false
+      if (isComposingEvent(event, recentlyComposing)) {
         // The IME consumes this Enter (candidate pick); neither submit nor
         // break the line. No preventDefault: the browser owns the gesture.
         return true
       }
+      if (isMobileDevice() && !event.ctrlKey && !event.metaKey) return false
       // Menu-open Enter picks the highlight through arbitration; a
       // no-highlight menu passes down to the submit gesture.
       if (handlers.arbitrate('enter', false) !== 'pass') {
-        event?.preventDefault()
+        event.preventDefault()
         return true
       }
-      event?.preventDefault()
-      if (event?.repeat === true) return true // held-down Enter must not machine-gun sends
+      event.preventDefault()
+      if (event.repeat) return true // held-down Enter must not machine-gun sends
       if (!handlers.canSubmit()) return true
-      handlers.submit(event?.ctrlKey === true || event?.metaKey === true)
+      handlers.submit(event.ctrlKey || event.metaKey)
       return true
     }, COMMAND_PRIORITY_CRITICAL),
     editor.registerCommand(PASTE_COMMAND, (event) => {

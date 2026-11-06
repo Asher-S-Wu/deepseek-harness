@@ -1,5 +1,10 @@
 - chromium desktop Send: clears the draft; editor stays focused through response completion
+- chromium desktop Enter: clears the draft; editor stays focused through response completion
+- chromium mobile Send: Enter and native newline input retain all four draft lines and editor focus without starting a turn
 - chromium mobile Send: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button
-- chromium mobile Enter: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button
+- chromium mobile Control+Enter: Enter and native newline input retain all four draft lines and editor focus without starting a turn
+- chromium mobile Control+Enter: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button
+- webkit mobile Send: Enter and native newline input retain all four draft lines and editor focus without starting a turn
 - webkit mobile Send: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button
-- webkit mobile Enter: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button
+- webkit mobile Control+Enter: Enter and native newline input retain all four draft lines and editor focus without starting a turn
+- webkit mobile Control+Enter: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button

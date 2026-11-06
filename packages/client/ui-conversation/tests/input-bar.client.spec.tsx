@@ -430,7 +430,7 @@ describe('composer focus handoff', () => {
     act(() => { shell.focus() })
     let settle!: (outcome: SubmitOutcome) => void
     sink.mockImplementationOnce(() => new Promise<SubmitOutcome>((resolve) => { settle = resolve }))
-    fireEvent.keyDown(textarea, { key: 'Enter' })
+    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: mobile })
     expect(textarea.getAttribute('contenteditable')).toBe('false')
     // A browser moves the keyboard to the body once the focused box stops being editable; jsdom does not.
     act(() => { textarea.blur() })
@@ -1672,16 +1672,22 @@ describe('running and lock semantics', () => {
     expect(sink).not.toHaveBeenCalled()
     expect(document.activeElement).toBe(textarea)
 
-    for (const gesture of ['click', 'enter'] as const) {
+    for (const gesture of ['click', 'enter', 'ctrl-enter'] as const) {
       writeDraft(shell, `send by ${gesture}`)
       act(() => { textarea.focus() })
       if (gesture === 'click') {
         fireEvent.mouseDown(button, { button: 0 })
         fireEvent.click(button)
       } else {
-        fireEvent.keyDown(textarea, { key: 'Enter' })
+        fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: gesture === 'ctrl-enter' })
       }
       await act(async () => {})
+      if (gesture === 'enter' && !automatic) {
+        expect(sink).toHaveBeenCalledTimes(1)
+        expect(shell.snapshot.draft).toBe('send by enter\n')
+        expect(document.activeElement).toBe(textarea)
+        continue
+      }
       expect(sink).toHaveBeenLastCalledWith(`send by ${gesture}`, [], 'queue', expect.any(AbortSignal), expect.any(Function))
       expect(shell.snapshot.draft).toBe('')
       expect(document.activeElement === textarea).toBe(automatic)
@@ -1695,7 +1701,7 @@ describe('running and lock semantics', () => {
       )
       textarea.focus()
     })
-    fireEvent.keyDown(textarea, { key: 'Enter' })
+    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: !automatic })
     await act(async () => {})
     expect(shell.snapshot.phase).toBe('claimed')
     expect(shell.snapshot.draft).toBe('/goal ')
